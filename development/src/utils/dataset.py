@@ -9,7 +9,7 @@ import torch
 
 from torch.utils.data import Dataset
 
-
+# 在特定关键点（关节）中心生成二维高斯图，并将其添加到置信度地图中，用于生成热图。
 def put_gaussian_maps(
     center: List[float],
     accumulate_confid_map: np.ndarray,
@@ -38,7 +38,7 @@ def put_gaussian_maps(
 
     return accumulate_confid_map
 
-
+# 在两个关键点（centerA和centerB）之间创建向量地图（PAF），用于表示肢体的方向信息。
 def put_vec_maps(
     centerA: List[float],
     centerB: List[float],
@@ -96,7 +96,7 @@ def put_vec_maps(
 
     return accumulate_vec_map, count
 
-
+# 生成关节的地面真值热图和肢体连接的PAF。它会调整掩码的大小，并为图像中的主人物和其他人物应用高斯图和PAF。
 def get_ground_truth(
     meta: dict, mask_miss: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -182,7 +182,7 @@ def get_ground_truth(
 
     return heat_mask, heatmaps, paf_mask, pafs
 
-
+# 这个数据集类继承自torch.utils.data.Dataset，用于加载图像、掩码和元数据，并通过数据增强管道处理数据。最终返回处理后的图像及地面真值热图/PAF。
 class COCOKeypointsDataset(Dataset):
     def __init__(
         self,

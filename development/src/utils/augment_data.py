@@ -10,6 +10,7 @@ import numpy as np
 import torch
 
 
+# 从元数据中提取关键信息，如图像尺寸、人物数量和关键点（关节），并将其格式化为一个字典（anno）。输出这个注释字典、图像和掩码，供后续处理使用。
 def get_annotation(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -41,6 +42,7 @@ def get_annotation(
     return anno, img, mask_miss
 
 
+# 通过计算左右肩膀之间的中点来添加“颈部”关键点。该函数更新了主要人物和其他人物的关节数组。
 def add_neck(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -93,6 +95,7 @@ def add_neck(
     return meta, img, mask_miss
 
 
+# 使用随机缩放因子对图像和掩码进行缩放，并相应地缩放物体的位置和关节坐标。
 def aug_scale(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -119,7 +122,7 @@ def aug_scale(
 
     return meta_data, img, mask_miss
 
-
+# 对图像和关节进行随机角度的旋转（最多±40度），为训练数据引入旋转变化。
 def aug_rotate(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -187,7 +190,7 @@ def aug_rotate(
 
     return meta_data, img_rot, mask_miss_rot
 
-
+# 随机裁剪和填充图像，调整物体位置和关节坐标，使其保持在图像中心。
 def aug_croppad(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -266,7 +269,7 @@ def aug_croppad(
 
     return meta_data, img, mask_miss
 
-
+# 与aug_croppad类似，但不进行随机扰动。该函数可能用于验证阶段，以确保裁剪的一致性。
 def croppad(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -341,7 +344,7 @@ def croppad(
 
     return meta_data, img, mask_miss
 
-
+# 水平翻转图像，并调整关节位置，交换身体部位的左右位置。
 def aug_flip(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -376,7 +379,7 @@ def aug_flip(
 
     return meta_data, img, mask_miss
 
-
+# 移除落在图像边界之外的关节，将它们标记为无效。
 def remove_illegal_joint(
     meta_data: dict, img: np.ndarray, mask_miss: np.ndarray
 ) -> Tuple[dict, np.ndarray, np.ndarray]:
@@ -412,7 +415,7 @@ def remove_illegal_joint(
 
     return meta_data, img, mask_miss
 
-
+# 用于处理图像归一化，第一个类使用ImageNet的均值和标准差进行归一化，
 class TensorNormalization:
     def __init__(self):
         self.color_mean = [0.485, 0.456, 0.406]
@@ -437,14 +440,14 @@ class TensorNormalization:
 
         return meta_data, img, mask_miss
 
-
+# 第二个类则通过将均值设为零、标准差设为1来跳过归一化。
 class TensorNotNormalization(TensorNormalization):
     def __init__(self):
         super().__init__()
         self.color_mean = [0, 0, 0]
         self.color_std = [1, 1, 1]
 
-
+# 一个帮助类，用于按顺序对图像和掩码应用多个变换函数
 class Compose:
     def __init__(self, transforms):
         self.transforms = transforms
@@ -456,7 +459,7 @@ class Compose:
             meta_data, img, mask_miss = transform(meta_data, img, mask_miss)
         return meta_data, img, mask_miss
 
-
+# 类定义了用于训练（train）和验证（val）的不同数据增强管道，使用了如缩放、旋转、裁剪等功能。
 class DataTransform:
     def __init__(self):
         self.data_transform = {
