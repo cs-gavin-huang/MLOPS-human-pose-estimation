@@ -1,6 +1,23 @@
+# ### 网络配置
+# ```yaml
+# networks:
+#   frontend:
+#     driver: bridge
+#   backend:
+#     driver: bridge
+# ```
+# 定义了两个独立的桥接网络，`frontend` 和 `backend`，不同服务通过网络隔离来管理通信。
 version: "3.8"
-
 services:
+  # #### 1. **`mlflow-db`（MLflow 后端数据库，PostgreSQL）**
+  # - **容器名称**：`mlflow-backend-store-container`
+  # - **镜像**：使用 PostgreSQL 14 版本的官方镜像作为 MLflow 的后端数据库存储。
+  # - **端口映射**：将主机的 5433 端口映射到容器的 5432（PostgreSQL 默认端口）。
+  # - **数据持久化**：将数据库文件保存到主机的 `./src/database/postgres` 目录，避免容器重启丢失数据。
+  # - **环境变量**：通过 `.env` 文件中的变量定义 PostgreSQL 的用户名、密码和数据库名称。
+  # - **健康检查**：每 5 秒运行一次 `pg_isready` 命令检查数据库的健康状态，重试 3 次。
+  # - **重启策略**：`restart: always` 确保容器异常退出时自动重启。
+  # - **网络**：连接到 `backend` 网络。
   mlflow-db:
     container_name: mlflow-backend-store-container
     image: postgres:14
@@ -47,6 +64,15 @@ services:
       - frontend
       - backend
 
+  # #### 3. **`bucket-creator`（MinIO 存储桶创建服务）**
+  # - **容器名称**：`bucket-creator-container`
+  # - **镜像**：使用 `minio/mc`，即 MinIO 的命令行工具，用于管理存储桶。
+  # - **依赖**：依赖 `s3` 容器，确保 MinIO 容器启动后再运行此服务。
+  # - **功能**：
+  #   - 首先等待 5 秒，确保 MinIO 服务启动。
+  #   - 配置 MinIO 的主机。
+  #   - 检查是否存在指定的存储桶（如 `challenge`），如果不存在，则创建存储桶。
+  #   - 设置存储桶的下载策略为公开。
   bucket-creator:
     image: minio/mc
     container_name: bucket-creator-container
@@ -62,7 +88,15 @@ services:
       /usr/bin/mc policy download s3/${MLFLOW_BUCKET_NAME};
       exit 0;
       '
-
+  # #### 4. **`mlflow-tracking-server`（MLflow 跟踪服务器）**
+  # - **容器名称**：`mlflow-tracking-server-container`
+  # - **镜像**：自定义构建的 MLflow 跟踪服务器镜像，存储模型和实验元数据。
+  # - **端口映射**：将 MLflow 服务器的默认端口 5000 映射到主机的 `${LOCAL_MLFLOW_SERVER_PORT}`。
+  # - **依赖**：依赖 `mlflow-db` 和 `s3` 容器，确保 PostgreSQL 数据库和 MinIO 存储服务已启动。
+  # - **健康检查**：每 30 秒通过 `curl` 检查服务器的健康状态。
+  # - **命令**：
+  #   - 启动 MLflow 服务器，指定 PostgreSQL 数据库作为后端存储。
+  #   - 使用 MinIO 作为存储实验工件（模型、数据等）的对象存储。
   mlflow-tracking-server:
     build:
       context: .

@@ -29,6 +29,43 @@ MINIO_ACCESS_KEY = os.environ["MINIO_ACCESS_KEY"]
 MINIO_SECRET_ACCESS_KEY = os.environ["MINIO_SECRET_ACCESS_KEY"]
 MLFLOW_BUCKET_NAME = os.environ["MLFLOW_BUCKET_NAME"]
 
+""" 
+这段代码是一个集成了数据版本控制、模型训练、权重验证、以及将容器镜像推送到 Docker Hub 的自动化流程，适用于机器学习模型的开发与部署。主要的工作流程包括 DVC 数据版本控制、MLflow 管理的模型训练、权重验证、以及基于验证结果的容器镜像推送。下面是详细的解释：
+
+### 主要功能组件
+
+#### 1. **环境变量加载**
+   - **`load_dotenv`**：从 `.env` 文件加载环境变量，包含 MinIO 服务的访问密钥、端口、以及 MLflow 存储桶的相关信息。
+   - 这些环境变量用于与 MinIO 和 MLflow 交互。
+
+#### 2. **`DataVersion` 类**
+   - 负责执行数据版本控制任务，主要通过 DVC 管理数据的版本。
+   - **`initialize_dvc()`** 和 **`initialize_dvc_storage()`** 初始化 DVC 并配置远程存储（通常是使用 Google Cloud Storage 或 MinIO）。
+   - **`update_data_version()`** 用于版本化数据，将新的数据版本推送到远程存储。
+
+#### 3. **`ModelTraining` 类**
+   - 负责执行模型训练任务。
+   - 使用 `MLFlowConfig` 加载与 MLflow 相关的配置，通过 `run_train()` 进行模型训练，并将实验数据记录到 MLflow。
+   - **`generate_run_name_by_date_time()`** 自动生成运行名称，确保实验名称唯一。
+
+#### 4. **`WeightValidation` 类**
+   - 验证新训练的模型权重是否优于之前的权重，决定是否更新模型。
+   - **`get_best_run()`**：从 MLflow 获取当前实验中表现最好的模型运行（根据验证损失）。
+   - **`is_previous_weight_better()`**：对比当前权重和之前保存的最优权重，判断是否需要更新。
+   - 如果新权重优于之前的权重，则下载新的权重文件并保存更新。
+
+#### 5. **`ImagePushingDockerHub` 类**
+   - 如果权重被更新，执行 Docker 镜像构建和推送到 Docker Hub。
+   - 先通过 `docker compose` 构建新的 Docker 镜像，随后使用 `docker push` 将镜像推送到 Docker Hub。
+
+### 主程序执行逻辑
+
+在 `__main__` 部分，整个流程按照以下顺序执行：
+1. **数据版本控制**：调用 `DataVersion.run()` 初始化 DVC，并更新数据版本。
+2. **模型训练**：调用 `ModelTraining.run()` 执行模型训练，并记录到 MLflow。
+3. **权重验证**：调用 `WeightValidation.run()`，验证新模型权重是否比之前的模型更优。
+4. **推送 Docker 镜像**：根据权重验证结果，决定是否构建并推送新的 Docker 镜像到 Docker Hub。
+"""
 
 class DataVersion:
     @staticmethod

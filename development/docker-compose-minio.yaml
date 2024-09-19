@@ -1,10 +1,31 @@
+# ### 配置文件结构
+# - **`version: "3.8"`**：指定了 Docker Compose 文件的版本。这决定了可以使用的特性，在这里选择了 3.8 版本，适用于较新的 Docker 环境。
+# - **`services`**：定义了容器服务。在这里，只有一个服务 `s3`，代表 MinIO。
+# ### 服务定义：`s3`
 version: "3.8"
 services:
   s3:
+    # #### 1. **`image: minio/minio`**
+    #    - 指定使用的镜像是 `minio/minio`，这是 MinIO 的官方 Docker 镜像。通过这个镜像，Docker 容器将运行 MinIO 服务。
     image: minio/minio
+    # #### 2. **`container_name: mlflow-minio-container`**
+    #    - 该选项定义容器的名称，容器会以 `mlflow-minio-container` 作为其标识，而不是 Docker 默认生成的随机名称。
     container_name: mlflow-minio-container
+    # #### 3. **`volumes`**
+    #    - 将主机目录 `./src/database/minio_data` 映射到容器内部的 `/data`，这个路径是 MinIO 的存储目录，用于保存数据。这样即使容器被删除，数据依然保存在主机上。
+    #    ```yaml
+    #    volumes:
+    #       - ./src/database/minio_data:/data
+    #    ```
     volumes:
       - ./src/database/minio_data:/data
+    # #### 4. **`environment`**
+    #    - 这里设置了一些 MinIO 的环境变量，这些变量主要用于配置 MinIO 的管理员用户名、密码、地址、端口等信息。`docker-compose` 会从环境中读取这些变量，因此这些变量应该在 `.env` 文件或环境变量中定义。
+      
+    #    - **`MINIO_ROOT_USER`** 和 **`MINIO_ROOT_PASSWORD`**：用于设置 MinIO 的管理员用户名和密码。
+    #    - **`MINIO_ADDRESS`** 和 **`MINIO_PORT`**：设置 MinIO 服务监听的地址和端口。
+    #    - **`MINIO_STORAGE_USE_HTTPS`**：定义 MinIO 是否使用 HTTPS。
+    #    - **`MINIO_CONSOLE_ADDRESS`**：设置 MinIO 控制台的访问地址。
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -12,13 +33,26 @@ services:
       - MINIO_PORT=${MINIO_PORT}
       - MINIO_STORAGE_USE_HTTPS=${MINIO_STORAGE_USE_HTTPS}
       - MINIO_CONSOLE_ADDRESS=${MINIO_CONSOLE_ADDRESS}
+    # #### 5. **`ports`**
+    #    - 映射主机和容器的端口。此处有两个端口：
+    #      - `${MINIO_PORT}:9000`：将容器内部的 MinIO 服务端口（9000）映射到主机的 `${MINIO_PORT}`。`${MINIO_PORT}` 是一个环境变量，应该在 `.env` 文件中定义，代表主机上 MinIO 服务的端口。
+    #      - `${MINIO_CONSOLE_PORT}:9001`：将 MinIO 控制台端口（9001）映射到主机的 `${MINIO_CONSOLE_PORT}`，允许通过该端口访问 MinIO 控制台界面。
     ports:
       - "${MINIO_PORT}:9000"
       - "${MINIO_CONSOLE_PORT}:9001"
+    # #### 6. **`command`**
+    #    - 该命令 `server /data` 命令启动 MinIO 服务，并指定 `/data` 作为存储路径，这是通过 Docker Volume 映射的目录。
     command: server /data
+    # #### 7. **`healthcheck`**
+    #    - 定义了容器的健康检查。这个选项会周期性地运行 `curl` 命令检查 MinIO 服务是否正常运行。 
+    #      - `interval: 30s`：每 30 秒检查一次。
+    #      - `timeout: 20s`：每次健康检查的超时时间为 20 秒。
+    #      - `retries: 3`：如果连续 3 次健康检查失败，认为服务不可用。
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
     restart: always
+    # #### 8. **`restart: always`**
+    #    - 指定容器的重启策略。当容器退出时，无论是什么原因（包括非零退出码），都会自动重启该容器。
